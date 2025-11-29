@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Record Portal</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        /* FIX 1: Apply Border Box globally so padding doesn't expand width/height unexpectedly */
+        * {
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #2563eb;
+            --secondary: #1e40af;
+            --bg: #f3f4f6;
+            --card-bg: #ffffff;
+            --text-main: #111827;
+            --text-sub: #6b7280;
+            --accent-green: #059669;
+            --accent-bg-green: #d1fae5;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            padding: 20px;
+            color: var(--text-main);
+        }
+
+        /* --- Header --- */
+        .header-container {
+            max-width: 1200px;
+            margin: 0 auto 30px;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            text-align: center;
+        }
+
+        h1 { margin: 0 0 20px 0; color: var(--secondary); font-size: 2rem; }
+
+        .controls { display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; }
+
+        select, input {
+            padding: 12px 16px;
+            border-radius: 8px;
+            border: 1px solid #d1d5db;
+            font-size: 16px;
+            outline: none;
+        }
+
+        input { width: 100%; max-width: 400px; }
+        input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2); }
+
+        /* --- Grid & Card --- */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+            gap: 25px;
+            max-width: 1300px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e5e7eb;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .card:hover { transform: translateY(-4px); box-shadow: 0 12px 20px -3px rgba(0, 0, 0, 0.1); }
+
+        /* FIX 2: Modified Header to remove gap */
+        .card-header {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            padding: 16px 20px; 
+            position: relative;
+        }
+
+        .card-header h3 { margin: 0; font-size: 1.25rem; font-weight: 700; max-width: 70%; line-height: 1.2; }
+        .card-header .designation { 
+            font-size: 0.9rem; 
+            opacity: 0.9; 
+            display: block; 
+            margin-top: 4px;
+            font-weight: 500;
+        }
+        
+        /* --- Top Right Stack (Dept & ID) --- */
+        .top-right-info {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end; /* Align to right */
+            gap: 6px;
+        }
+
+        .dept-badge {
+            background: rgba(255,255,255,0.25); 
+            padding: 4px 10px;
+            border-radius: 6px; 
+            font-size: 0.75rem; 
+            font-weight: 700; 
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .id-badge {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .card-body { padding: 20px; flex-grow: 1; display: flex; flex-direction: column; gap: 12px; }
+
+        /* --- Info Rows --- */
+        .info-row {
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 0.95rem; border-bottom: 1px solid #f3f4f6; padding-bottom: 8px;
+        }
+        .label { color: var(--text-sub); font-weight: 500; font-size: 0.9rem; }
+        .value { font-weight: 600; color: var(--text-main); }
+
+        /* --- NEW PROFESSIONAL Service Info Section --- */
+        .service-info {
+            /* FIX 3: Changed background and border for a professional look */
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 8px;
+            padding: 15px;
+            font-size: 0.9rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px 20px;
+        }
+        
+        .service-item { display: flex; flex-direction: column; }
+
+        /* FIX 4: Made labels small, uppercase, and subtle */
+        .service-label { 
+            font-size: 0.75rem; 
+            color: #555; 
+            text-transform: uppercase; 
+            letter-spacing: 0.5px; 
+            margin-bottom: 2px;
+        }
+
+        /* FIX 5: Made values bolder and clearer */
+        .service-val { 
+            font-weight: 700; 
+            color: #0c4a6e;
+        }
+
+        /* Highlighted the Next Increment date */
+        .next-increment-val {
+            color: #d97706; /* Amber color for highlight */
+            font-weight: 800;
+        }
+
+        /* --- Leave Sections --- */
+        .leave-section {
+            background: #f8fafc; border-radius: 8px; padding: 12px;
+            border: 1px solid #e2e8f0; margin-top: 5px;
+        }
+
+        .section-title {
+            font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;
+            color: var(--text-sub); font-weight: 700; margin-bottom: 8px;
+            display: flex; justify-content: space-between;
+            color: red;
+        }
+
+        .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; text-align: center; }
+        .stat-box { display: flex; flex-direction: column; }
+        
+        .stat-label { font-size: 0.65rem; color: var(--text-sub); font-weight: 600; } 
+        .stat-value { font-size: 1rem; font-weight: 700; color: var(--text-main); }
+
+        .remaining-box {
+            background-color: var(--accent-bg-green);
+            border: 1px solid #6ee7b7;
+            border-radius: 8px; padding: 10px; margin-top: 5px;
+        }
+        .rem-val { color: #065f46; font-weight: 800; font-size: 1.1rem; }
+
+        .message { grid-column: 1 / -1; text-align: center; padding: 40px; color: var(--text-sub); }
+        .error { color: #ef4444; background: #fee2e2; padding: 15px; border-radius: 8px; }
+    </style>
+</head>
+<body>
+
+    <div class="header-container">
+        <h1>Employee Record</h1>
+        <div class="controls">
+            <select id="deptSelect" onchange="loadDepartment()">
+                <option value="all" selected>All Departments</option>
+                <option value="caie">CAIE Department</option>
+                <option value="is">IS Department</option>
+                <option value="admin">Admin 25-26</option>
+            </select>
+            <input type="text" id="searchInput" placeholder="Search by Name, ID, Phone, Major, LAD, Designation..." onkeyup="handleSearch()">
+        </div>
+    </div>
+
+    <div id="grid" class="grid">
+        <div class="message">Loading data...</div>
+    </div>
+
+    <script>
+        // -------------------------------------------------------------
+        // DATA SOURCES
+        // -------------------------------------------------------------
+        const SHEETS = {
+            caie:  "https://docs.google.com/spreadsheets/d/e/2PACX-1vS1JkTvfDh6jMptcbe-7AAXBoE3Z0Fn3KqnlJIT_4BylGfM4pRkpqyeC_Ozej6PL3x81leNtcVbL3Un/pub?gid=219712046&single=true&output=csv",
+            is:    "https://docs.google.com/spreadsheets/d/e/2PACX-1vS1JkTvfDh6jMptcbe-7AAXBoE3Z0Fn3KqnlJIT_4BylGfM4pRkpqyeC_Ozej6PL3x81leNtcVbL3Un/pub?gid=1372526164&single=true&output=csv", 
+            admin: "https://docs.google.com/spreadsheets/d/e/2PACX-1vS1JkTvfDh6jMptcbe-7AAXBoE3Z0Fn3KqnlJIT_4BylGfM4pRkpqyeC_Ozej6PL3x81leNtcVbL3Un/pub?gid=1584463675&single=true&output=csv"
+        };
+
+        let allRecords = [];
+
+        function fetchCsvData(url) {
+            return new Promise((resolve, reject) => {
+                Papa.parse(url, {
+                    download: true,
+                    header: false,
+                    skipEmptyLines: true,
+                    complete: function(results) {
+                        resolve(results.data);
+                    },
+                    error: function(err) {
+                        reject(err);
+                    }
+                });
+            });
+        }
+
+        async function loadDepartment() {
+            const deptKey = document.getElementById('deptSelect').value;
+            const container = document.getElementById('grid');
+            document.getElementById('searchInput').value = "";
+            container.innerHTML = '<div class="message">Fetching data...</div>';
+
+            try {
+                let combinedRows = [];
+
+                if (deptKey === 'all') {
+                    const validUrls = Object.values(SHEETS).filter(url => url && url.length > 5);
+                    if(validUrls.length === 0) throw new Error("No valid CSV links found.");
+
+                    const results = await Promise.all(validUrls.map(url => fetchCsvData(url)));
+                    results.forEach(rows => combinedRows = combinedRows.concat(rows));
+                } else {
+                    const url = SHEETS[deptKey];
+                    if (!url) throw new Error(`Link missing for ${deptKey}`);
+                    combinedRows = await fetchCsvData(url);
+                }
+
+                processData(combinedRows);
+
+            } catch (error) {
+                container.innerHTML = `<div class="message error">Error: ${error.message}</div>`;
+                console.error(error);
+            }
+        }
+
+        function processData(rows) {
+            allRecords = rows.filter(row => {
+                const id = row[1] ? row[1].toString() : "";
+                return id.length > 0 && /\d/.test(id); 
+            }).map(row => {
+                return {
+                    id: row[1],
+                    name: row[2],
+                    designation: row[3],
+                    dept: row[5],
+                    mobile: row[6],
+                    lad: row[7] || '-',          
+                    major: row[8] || '-',        
+                    doj: row[9] || '-',          
+                    duration: row[10] || '-',    
+                    probation: row[11] || '-',   
+                    nextInc: row[12] || '-',     
+                    
+                    taken: {
+                        casual: row[13] || '-',
+                        medical: row[14] || '-',
+                        early: row[15] || '-',
+                        earned: row[16] || '-'
+                    },
+                    remaining: {
+                        casual: row[17] || '-',
+                        medical: row[18] || '-',
+                        total: row[19] || '-'
+                    }
+                };
+            });
+            renderCards(allRecords);
+        }
+
+        function renderCards(data) {
+            const container = document.getElementById('grid');
+            container.innerHTML = '';
+
+            if (data.length === 0) {
+                container.innerHTML = '<div class="message">No records found.</div>';
+                return;
+            }
+
+            data.forEach(p => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <div class="card-header">
+                        <div class="top-right-info">
+                            <div class="dept-badge">${p.dept}</div>
+                            <div class="id-badge">ID: ${p.id}</div>
+                        </div>
+
+                        <h3>${p.name || 'Unknown'}</h3>
+                        <span class="designation">${p.designation || ''}</span>
+                    </div>
+                    
+                    <div class="card-body">
+                        <div class="info-row">
+                            <span class="label">Mobile:</span> <span class="value">${p.mobile}</span>
+                        </div>
+
+                        <div class="service-info">
+                            <div class="service-item">
+                                <span class="service-label">Major / Subject</span>
+                                <span class="service-val">${p.major}</span>
+                            </div>
+                            <div class="service-item">
+                                <span class="service-label">LAD</span>
+                                <span class="service-val">${p.lad}</span>
+                            </div>
+                            <div class="service-item">
+                                <span class="service-label">Date of Join</span>
+                                <span class="service-val">${p.doj}</span>
+                            </div>
+                            <div class="service-item">
+                                <span class="service-label">Duration</span>
+                                <span class="service-val">${p.duration}</span>
+                            </div>
+                            <div class="service-item">
+                                <span class="service-label">Probation End</span>
+                                <span class="service-val">${p.probation}</span>
+                            </div>
+                            <div class="service-item">
+                                <span class="service-label">Next Increment</span>
+                                <span class="service-val next-increment-val">${p.nextInc}</span>
+                            </div>
+                        </div>
+
+                        <div class="leave-section">
+                            <div class="section-title"><span>Taken Leave</span></div>
+                            <div class="stat-grid">
+                                <div class="stat-box"><span class="stat-value">${p.taken.casual}</span><span class="stat-label">Casual</span></div>
+                                <div class="stat-box"><span class="stat-value">${p.taken.medical}</span><span class="stat-label">Medical</span></div>
+                                <div class="stat-box"><span class="stat-value">${p.taken.early}</span><span class="stat-label">Early</span></div>
+                                <div class="stat-box"><span class="stat-value">${p.taken.earned}</span><span class="stat-label">Earned</span></div>
+                            </div>
+                        </div>
+
+                        <div class="remaining-box">
+                            <div class="section-title" style="color:#065f46;">Remaining Leave</div>
+                            <div class="stat-grid" style="grid-template-columns: repeat(3, 1fr);">
+                                <div class="stat-box"><span class="rem-val">${p.remaining.casual}</span><span class="stat-label">Casual</span></div>
+                                <div class="stat-box"><span class="rem-val">${p.remaining.medical}</span><span class="stat-label">Medical</span></div>
+                                <div class="stat-box"><span class="rem-val">${p.remaining.total}</span><span class="stat-label">Total</span></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function handleSearch() {
+            const query = document.getElementById('searchInput').value.toLowerCase().trim();
+            if (!query) { 
+                renderCards(allRecords); 
+                return; 
+            }
+            
+            const filtered = allRecords.filter(p => {
+                const searchStr = `${p.name} ${p.id} ${p.mobile} ${p.major} ${p.lad} ${p.dept} ${p.designation}`.toLowerCase();
+                return searchStr.includes(query);
+            });
+            renderCards(filtered);
+        }
+
+        loadDepartment();
+    </script>
+</body>
+</html>
